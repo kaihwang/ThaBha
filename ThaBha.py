@@ -6,14 +6,17 @@ from igraph import Graph, ADJ_UNDIRECTED, VertexClustering
 import bct
 import os 
 import sys
+import pandas as pd
+
 
 datapath = '/home/despoB/connectome-thalamus/NotBackedUp/HCP_Matrices/'
 Conditions = ['EMOTION', 'GAMBLING', 'MOTOR', 'SOCIAL', 'LANGUAGE', 'WM', 'RELATIONAL', 'REST1', 'REST2']
 Directions = ['_LR', '_RL']
 Atlases =['_Gordon_plus_Morel', '_Gordon_plus_Thalamus_WTA']
 
+
 def matrix_to_igraph(matrix,cost,binary=False,check_tri=True,interpolation='midpoint',normalize=False,mst=False):
-	'''use igrpah, from Max'''
+	'''use igrpah function from Maxwell'''
 	matrix = threshold(matrix,cost,binary,check_tri,interpolation,normalize,mst)
 	g = Graph.Weighted_Adjacency(matrix.tolist(),mode=ADJ_UNDIRECTED,attr="weight")
 	print 'Matrix converted to graph with density of: ' + str(g.density())
@@ -23,7 +26,7 @@ def matrix_to_igraph(matrix,cost,binary=False,check_tri=True,interpolation='midp
 
 
 def threshold(matrix,cost,binary=False,check_tri=True,interpolation='midpoint',normalize=False,mst=False):
-	'''threshold function from Max'''
+	'''threshold function from Maxwell'''
 	matrix[np.isnan(matrix)] = 0.0
 	matrix[matrix<0.0] = 0.0
 	np.fill_diagonal(matrix,0.0)
@@ -86,15 +89,53 @@ def run_graph(sub):
 				np.save(fn, Qs)
 
 
+
+def compile_dataframe(condition):
+	''' load PC/Q/WMD across subjects, for now ave across costs'''
+	Subjects = np.loadtxt('HCP_list', dtype=int)
+	df = pd.DataFrame(columns = ['Subject', 'Condition', 'Atlas', 'ROI', 'Q', 'PC', 'WMD'])
+	for sub in Subjects:
+		tmp_df = pd.DataFrame()
+		for atlas in Atlases:
+			try:
+				fn = datapath + str(sub) +'_' + condition  + atlas + '.PC.npy'
+				PC = np.mean(np.load(fn), axis=0)
+				fn = datapath + str(sub) +'_' + condition  + atlas + '.WMD.npy'
+				WMD = np.mean(np.load(fn), axis =0)
+				fn = datapath + str(sub) +'_' + condition  + atlas + '.Q.npy'
+				Q = np.mean(np.load(fn), axis =0)
+
+				tmp_df['PC'] = PC
+				tmp_df['Q'] = [Q]*len(PC)
+				tmp_df['WMD'] = WMD
+				tmp_df['Subject'] = np.int(sub)
+				tmp_df['Atlas'] = atlas[1:]
+				tmp_df['ROI'] = np.arange(1,len(PC)+1, dtype=int)
+				tmp_df['Condition'] = condition
+				df = df.append(tmp_df,  ignore_index=True)	
+			except:
+				continue	
+	return df
+
+
+
+
+
+
 if __name__ == "__main__":
 
+
+	######### run graph metics
 	#for sub in subjects:
 	#sub = 100307
-
-	sub =  sys.argv[1] #sys.stdin.read().strip('\n')
-	run_graph(sub)
-
-		
+	#sub =  sys.argv[1] #sys.stdin.read().strip('\n')
+	#run_graph(sub)
+	
+	######### compaile dataframe
+	for condition in Conditions:
+		df = compile_dataframe(condition)
+		fn = 'Data/graph_%s_df.csv' %condition
+		df.to_csv(fn)	
 				
 
 
