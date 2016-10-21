@@ -7,6 +7,7 @@ import bct
 import os 
 import sys
 import pandas as pd
+import glob
 
 
 datapath = '/home/despoB/connectome-thalamus/NotBackedUp/HCP_Matrices/'
@@ -93,11 +94,14 @@ def run_graph(sub):
 def compile_dataframe(condition):
 	''' load PC/Q/WMD across subjects, for now ave across costs'''
 	Subjects = np.loadtxt('HCP_list', dtype=int)
-	df = pd.DataFrame(columns = ['Subject', 'Condition', 'Atlas', 'ROI', 'Q', 'PC', 'WMD'])
+	df = pd.DataFrame(columns = ['Subject', 'Condition', 'Atlas', 'ROI', 'Q', 'PC', 'WMD', 'Performance'])
+	bdf = pd.read_csv('/home/despoB/mb3152/dynamic_mod/os_behavior_data.csv')
 	for sub in Subjects:
-		tmp_df = pd.DataFrame()
+		
 		for atlas in Atlases:
 			try:
+				## data
+				tmp_df = pd.DataFrame()
 				fn = datapath + str(sub) +'_' + condition  + atlas + '.PC.npy'
 				PC = np.mean(np.load(fn), axis=0)
 				fn = datapath + str(sub) +'_' + condition  + atlas + '.WMD.npy'
@@ -112,9 +116,31 @@ def compile_dataframe(condition):
 				tmp_df['Atlas'] = atlas[1:]
 				tmp_df['ROI'] = np.arange(1,len(PC)+1, dtype=int)
 				tmp_df['Condition'] = condition
-				df = df.append(tmp_df,  ignore_index=True)	
+				
+				## behav
+				files = glob.glob('/home/despoB/mb3152/scanner_performance_data/%s_tfMRI_*%s*_Stats.csv' %(str(sub),condition))
+				performance = []
+				for f in files:
+					behav_df = pd.read_csv(f)
+					if condition == 'WM':
+						t_performance = np.mean(behav_df['Value'][[24,27,30,33]])
+					if condition == 'RELATIONAL':
+						t_performance = np.mean([behav_df['Value'][0],behav_df['Value'][1]])
+					if condition == 'LANGUAGE':
+						t_performance = np.mean([behav_df['Value'][2],behav_df['Value'][5]])
+						s1 = bdf['ReadEng_AgeAdj'][bdf.Subject == int(sub)] 
+						s2 = bdf['PicVocab_AgeAdj'][bdf.Subject == int(sub)]
+						t_performance = np.nanmean([t_performance,s1,s2])
+					if condition == 'SOCIAL':
+						t_performance = np.mean([behav_df['Value'][0],behav_df['Value'][5]])
+					performance.append(t_performance)
+				
+				tmp_df['Performance']= np.mean(performance)
+				df = df.append(tmp_df,  ignore_index=True)
+
 			except:
 				continue	
+
 	return df
 
 
@@ -136,7 +162,7 @@ if __name__ == "__main__":
 		df = compile_dataframe(condition)
 		fn = 'Data/graph_%s_df.csv' %condition
 		df.to_csv(fn)	
-				
+	#df = compile_dataframe('WM')			
 
 
 				
