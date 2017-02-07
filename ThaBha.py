@@ -17,7 +17,7 @@ Atlases =['_Gordon_plus_Morel', '_Gordon_plus_Thalamus_WTA']
 
 
 def matrix_to_igraph(matrix,cost,binary=False,check_tri=True,interpolation='midpoint',normalize=False,mst=False):
-	'''use igrpah function from Maxwell'''
+	'''use igrpah function to build graphs'''
 	matrix = threshold(matrix,cost,binary,check_tri,interpolation,normalize,mst)
 	g = Graph.Weighted_Adjacency(matrix.tolist(),mode=ADJ_UNDIRECTED,attr="weight")
 	print 'Matrix converted to graph with density of: ' + str(g.density())
@@ -123,16 +123,16 @@ def compile_dataframe(condition):
 				for f in files:
 					behav_df = pd.read_csv(f)
 					if condition == 'WM':
-						t_performance = np.mean(behav_df['Value'][[24,27,30,33]])
+						t_performance = np.mean(behav_df['Value'][[24,27,30,33]])  #average accuracy
 					if condition == 'RELATIONAL':
 						t_performance = np.mean([behav_df['Value'][0],behav_df['Value'][1]])
 					if condition == 'LANGUAGE':
-						t_performance = np.mean([behav_df['Value'][2],behav_df['Value'][5]])
+						t_performance = np.mean([behav_df['Value'][2],behav_df['Value'][5]])  #need to further normalize by age for language task
 						s1 = bdf['ReadEng_AgeAdj'][bdf.Subject == int(sub)] 
 						s2 = bdf['PicVocab_AgeAdj'][bdf.Subject == int(sub)]
 						t_performance = np.nanmean([t_performance,s1,s2])
 					if condition == 'SOCIAL':
-						t_performance = np.mean([behav_df['Value'][0],behav_df['Value'][5]])
+						t_performance = np.mean([behav_df['Value'][0],behav_df['Value'][5]]) #accuracy
 					performance.append(t_performance)
 				
 				tmp_df['Performance']= np.mean(performance)
@@ -165,7 +165,12 @@ if __name__ == "__main__":
 	#df = compile_dataframe('WM')			
 
 
-				
+	##### look coorrelation
+	PCcorr =[]
+	for i in np.arange(1,np.max(df['ROI'])+1):
+		PC = df[(df['Atlas']=='Gordon_plus_Thalamus_WTA') & (df['ROI']==i)]['PC'].values
+		behav = df[(df['Atlas']=='Gordon_plus_Thalamus_WTA') & (df['ROI']==i)]['Performance'].values	
+		PCcorr += [np.corrcoef(PC[~np.isnan(behav)],behav[~np.isnan(behav)])[0,1]]
 
 
 
